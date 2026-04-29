@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Approval Note Generator - Pro</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #1e7145;
+            --warning: #f59e0b;
+            --danger: #dc2626;
+            --word-blue: #2b5797;
+            --bg-body: #f1f5f9;
+            --font-stack: "Book Antiqua", Palatino, serif;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body { font-family: var(--font-stack); margin: 20px; background-color: var(--bg-body); font-size: 14px; line-height: 1.6; }
+        
+        .container { 
+            max-width: 1150px; 
+            margin: auto; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+        }
+
+        .input-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
+            gap: 15px; 
+            background: #f8fafc; 
+            padding: 20px; 
+            border-radius: 10px; 
+            border: 1px solid #e2e8f0; 
+            margin-bottom: 25px; 
+        }
+
+        .input-group label { display: block; font-weight: bold; font-size: 12px; margin-bottom: 6px; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        input, select { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #cbd5e1; 
+            border-radius: 6px; 
+            box-sizing: border-box; 
+            font-family: Book Antiqua; font-size: 15px;
+            transition: var(--transition);
+            outline: none;
+        }
+
+        /* Specifically right-align the amount input box */
+        #amount { text-align: right; font-weight: bold; color: #1e293b; }
+
+        input:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+        }
+
+        input:disabled { background-color: #e2e8f0; cursor: not-allowed; }
+
+        .btn-row { display: flex; gap: 12px; margin-bottom: 30px; }
+        
+        button { 
+            padding: 12px 18px; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-family: var(--font-stack);
+            transition: var(--transition);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        button:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        button:active { transform: translateY(0); }
+
+        .btn-add { background: var(--primary); color: white; flex: 2; } 
+        .btn-add:hover {box-shadow: 0 0 15px rgba(37, 99, 235, 0.7)}
+        .btn-update { background: var(--warning); color: white; flex: 2; display: none; }
+        .btn-word { background: transparent; color: var(--word-blue); border: 2px solid var(--word-blue); flex: 1; }
+        .btn-word:hover {
+            background: var(--word-blue) !important; 
+            color: white !important;
+            box-shadow: 0 0 15px rgba(43, 87, 151, 0.7)
+        }
+        .btn-excel { background: transparent; color: var(--success); border: 2px solid var(--success); flex: 1; }
+        .btn-excel:hover {
+            background: var(--success) !important; 
+            color: white !important;
+            box-shadow: 0 0 15px rgba(30, 113, 69, 0.7)
+        }
+        
+        /* Reset All - Glowing Red Hover */
+        .btn-clear { background: transparent; color: var(--danger); border: 2px solid var(--danger); flex: 1; }
+        .btn-clear:hover { 
+            background: var(--danger) !important; 
+            color: white !important; 
+            box-shadow: 0 0 15px rgba(220, 38, 38, 0.7); 
+        }
+
+        #approvalNote { border: 1px solid #e2e8f0; padding: 40px; color: black; background: #fff; margin-top: 20px; outline: none; }
+        #approvalNote:focus { background-color: #fafafa; border: 1px dashed var(--primary); }
+
+        .subject-highlight { text-align: left; font-weight: bold; text-decoration: underline; margin-bottom: 25px; line-height: 1.4; }
+        .sign-area { margin-top: 60px; display: flex; justify-content: space-between; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
+        th, td { border: 1px solid black; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .amt-col { text-align: right; white-space: nowrap; }
+        .btn-edit-sm, .btn-del-sm { padding: 4px 8px; font-size: 11px; border-radius: 3px; cursor: pointer; }
+        .btn-edit-sm { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
+        .btn-del-sm { background: #fee2e2; color: #991b1b; border: 1px solid #ef4444; }
+        
+        @media print { .no-print { display: none !important; } #approvalNote { border: none; padding: 0; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 style="text-align: center; color: var(--primary);">Payment Approval Note Generator</h2>
+
+    <input type="hidden" id="editIndex" value="-1">
+
+    <div class="input-grid" id="inputForm" onkeydown="if(event.key==='Enter') processEntry()">
+        <div class="input-group"><label>Vendor Name</label><input type="text" id="vendorName" placeholder="Eg. M/s Vendor Name"></div>
+        <div class="input-group"><label>Procurement Desc.</label><input type="text" id="procDesc" placeholder="Eg. Supply of Product"></div>
+        <div class="input-group"><label>PO Date</label><input type="date" id="poDate"></div>
+        
+        <div class="input-group">
+            <label>Delivery Type</label>
+            <select id="delType" onchange="handleDeliveryTypeChange()">
+                <option value="normal">Normal Delivery</option>
+                <option value="staggered">Staggered Delivery</option>
+            </select>
+        </div>
+
+        <div class="input-group"><label>Del. Period (Days)</label><input type="number" id="delPeriod" placeholder="Days"></div>
+        <div class="input-group"><label>Bill No.</label><input type="text" id="billNo" placeholder="Bill No"></div>
+        <div class="input-group"><label>Amount (₹)</label><input type="text" id="amount" placeholder="0.00" oninput="formatIndianCurrency(this)"></div>
+        <div class="input-group"><label>Rec. Date</label><input type="date" id="recDate"></div>
+    </div>
+
+    <div class="btn-row no-print">
+        <button id="mainBtn" class="btn-add" onclick="processEntry()">+ Add Bill</button>
+        <button id="updateBtn" class="btn-update" onclick="processEntry()">Update Bill Info</button>
+        <button class="btn-word" onclick="exportToWord()">Download Word</button>
+        <button class="btn-excel" onclick="exportToExcel()">Download Excel</button>
+        <button class="btn-clear" onclick="resetNote()">Reset All</button>
+    </div>
+
+    <div id="approvalNote" contenteditable="true">
+        <div class="subject-highlight">
+            Subject: Approval for the payment of <span id="noteTotalHeader">₹ 0.00</span>/- to <span id="vDisp"></span> for <span id="pDisp"></span>
+        </div>
+        
+        <p>1. A Purchase Order (PO) dated <span id="poDisp"></span> was issued in favor of <span id="vDisp1"></span> for <span id="pDisp1"></span> following approval from the competent authority Note#43.</p>
+        
+        <p>2. The GFR Entry, inspection report, and tax invoice are attached herewith for reference.</p>
+        
+        <p>3. In light of the above, approval of the competent authority is requested for the payment of <span id="noteTotalBody">₹ 0.00</span>/- to <span id="vDisp2"></span> for the <span id="pDisp2"></span>. Details as follows:</p>
+
+        <table id="mainTable" contenteditable="false">
+            <thead>
+                <tr>
+                    <th>Bill No.</th>
+                    <th>Amount</th>
+                    <th>Exp. Delivery Date</th>
+                    <th>Rec. Date</th>
+                    <th>Delay (Days)</th>
+                    <th>LD %</th>
+                    <th>LD Amt</th>
+                    <th>Payable Amount</th>
+                    <th class="no-print">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+            <tfoot>
+                <tr style="font-weight: bold;">
+                    <td colspan="7" style="text-align: right;">Grand Total</td>
+                    <td id="grandTotalCell" class="amt-col">₹ 0.00</td>
+                    <td class="no-print"></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <p>4. Submitted for kind consideration and approval for payment of <span id="noteTotalFooter">₹ 0.00</span> (<span id="amountInWords" style="font-style: italic;">Rupees Zero Only</span>) to <span id="vDisp3"></span>.</p>
+        
+        <div class="sign-area" contenteditable="false">
+            <div>Dealing Assistant<br>AO</div>
+            <div>DDO/FA</div>
+            <div>DDA</div>
+            <div>Executive Director</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let bills = [];
+    const indianFormatter = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    function handleDeliveryTypeChange() {
+        const type = document.getElementById('delType').value;
+        const periodInput = document.getElementById('delPeriod');
+        if (type === 'staggered') {
+            periodInput.value = "";
+            periodInput.disabled = true;
+        } else {
+            periodInput.disabled = false;
+        }
+    }
+
+    window.onload = () => {
+        const savedBills = localStorage.getItem('approvalBills');
+        const savedMeta = localStorage.getItem('approvalMeta');
+        if (savedBills) bills = JSON.parse(savedBills);
+        if (savedMeta) {
+            const meta = JSON.parse(savedMeta);
+            document.getElementById('vendorName').value = meta.vName || '';
+            document.getElementById('procDesc').value = meta.pDesc || '';
+            document.getElementById('poDate').value = meta.poDate || '';
+            document.getElementById('delType').value = meta.delType || 'normal';
+            document.getElementById('delPeriod').value = meta.delDays || '';
+            handleDeliveryTypeChange();
+        }
+        updateUI();
+    };
+
+    function saveData() {
+        localStorage.setItem('approvalBills', JSON.stringify(bills));
+        const meta = {
+            vName: document.getElementById('vendorName').value,
+            pDesc: document.getElementById('procDesc').value,
+            poDate: document.getElementById('poDate').value,
+            delType: document.getElementById('delType').value,
+            delDays: document.getElementById('delPeriod').value
+        };
+        localStorage.setItem('approvalMeta', JSON.stringify(meta));
+    }
+
+    function formatIndianCurrency(input) {
+        let value = input.value.replace(/,/g, '');
+        if (value === "" || isNaN(value)) return;
+        let x = value.split('.');
+        let x1 = x[0], x2 = x.length > 1 ? '.' + x[1] : '';
+        let lastThree = x1.substring(x1.length - 3);
+        let otherNumbers = x1.substring(0, x1.length - 3);
+        if (otherNumbers != '') lastThree = ',' + lastThree;
+        input.value = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + lastThree + x2;
+    }
+
+    function processEntry() {
+        const delType = document.getElementById('delType').value;
+        const vName = document.getElementById('vendorName').value.trim();
+        const pDesc = document.getElementById('procDesc').value.trim();
+        const poDateVal = document.getElementById('poDate').value;
+        const delDays = parseInt(document.getElementById('delPeriod').value);
+        const bNo = document.getElementById('billNo').value.trim();
+        const amtStr = document.getElementById('amount').value.replace(/,/g, '');
+        const amt = parseFloat(amtStr);
+        const recDateVal = document.getElementById('recDate').value;
+        const editIdx = parseInt(document.getElementById('editIndex').value);
+
+        if (!vName || !pDesc || !poDateVal || (delType === 'normal' && isNaN(delDays)) || !bNo || isNaN(amt) || !recDateVal) {
+            alert("Please fill all required fields!"); return;
+        }
+
+        const poDate = new Date(poDateVal);
+        const recDate = new Date(recDateVal);
+        let delay = 0, ldRate = 0, ldAmt = 0, expDateStr = "Staggered";
+
+        if (delType === 'normal') {
+            let expDate = new Date(poDate);
+            expDate.setDate(poDate.getDate() + delDays);
+            if (expDate.getDay() === 0) expDate.setDate(expDate.getDate() + 1);
+            expDateStr = formatDate(expDate);
+            delay = Math.max(0, Math.ceil((recDate - expDate) / 86400000));
+            const weeks = Math.ceil(delay / 7);
+            ldRate = Math.min(weeks * 0.005, 0.10);
+            ldAmt = amt * ldRate;
+        }
+
+        const payable = amt - ldAmt;
+        const billData = { bNo, amt, expDateStr, recDate: recDateVal, delay, ldRate, ldAmt, payable };
+
+        if (editIdx === -1) {
+            bills.push(billData);
+        } else {
+            bills[editIdx] = billData;
+            document.getElementById('editIndex').value = "-1";
+            document.getElementById('mainBtn').style.display = "block";
+            document.getElementById('updateBtn').style.display = "none";
+        }
+
+        saveData();
+        updateUI();
+        
+        // CLEAR AND FOCUS BILL NO.
+        ['billNo', 'amount', 'recDate'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('billNo').focus(); 
+    }
+
+    function updateUI() {
+        const v = document.getElementById('vendorName').value || "____";
+        const p = document.getElementById('procDesc').value || "____";
+        const d = document.getElementById('poDate').value;
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        let total = 0;
+
+        ['vDisp','vDisp1','vDisp2','vDisp3'].forEach(id => document.getElementById(id).innerText = v);
+        ['pDisp','pDisp1','pDisp2'].forEach(id => document.getElementById(id).innerText = p);
+        document.getElementById('poDisp').innerText = d ? formatDate(new Date(d)) : "____";
+
+        bills.forEach((bill, idx) => {
+            total += bill.payable;
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${bill.bNo}</td>
+                <td class="amt-col">₹ ${indianFormatter.format(bill.amt)}</td>
+                <td>${bill.expDateStr}</td>
+                <td>${formatDate(new Date(bill.recDate))}</td>
+                <td>${bill.delay}</td>
+                <td>${(bill.ldRate * 100).toFixed(1)}%</td>
+                <td class="amt-col">₹ ${indianFormatter.format(bill.ldAmt)}</td>
+                <td class="amt-col" style="font-weight:bold;">₹ ${indianFormatter.format(bill.payable)}</td>
+                <td class="no-print">
+                    <button class="btn-edit-sm" onclick="editRow(${idx})">Edit</button>
+                    <button class="btn-del-sm" onclick="deleteRow(${idx})">Del</button>
+                </td>
+            `;
+        });
+
+        const formattedTotal = "₹ " + indianFormatter.format(total);
+        document.getElementById('grandTotalCell').innerText = formattedTotal;
+        ['noteTotalHeader','noteTotalBody','noteTotalFooter'].forEach(id => document.getElementById(id).innerText = formattedTotal);
+        document.getElementById('amountInWords').innerText = "Rupees " + numberToWordsWithPaisa(total) + " Only";
+    }
+
+    function editRow(idx) {
+        const b = bills[idx];
+        document.getElementById('billNo').value = b.bNo;
+        document.getElementById('amount').value = b.amt;
+        formatIndianCurrency(document.getElementById('amount'));
+        document.getElementById('recDate').value = b.recDate;
+        document.getElementById('editIndex').value = idx;
+        document.getElementById('mainBtn').style.display = "none";
+        document.getElementById('updateBtn').style.display = "block";
+        document.getElementById('billNo').focus();
+    }
+
+    function deleteRow(idx) {
+        if(confirm("Remove this entry?")) {
+            bills.splice(idx, 1);
+            saveData();
+            updateUI();
+        }
+    }
+
+    function formatDate(d) {
+        if (!d || isNaN(d.getTime())) return "";
+        return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+    }
+
+    function numberToWordsWithPaisa(n) {
+        let fixed = n.toFixed(2);
+        let nums = fixed.split('.');
+        let whole = parseInt(nums[0]);
+        let paisa = parseInt(nums[1]);
+        let out = translate(whole);
+        if (paisa > 0) { out += " and " + translate(paisa) + " Paisa"; }
+        return out;
+    }
+
+    function translate(num) {
+        const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+        const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+        const help = (n) => {
+            if (n < 20) return a[n];
+            if (n < 100) return b[Math.floor(n / 10)] + (n % 10 !== 0 ? " " + a[n % 10] : "");
+            if (n < 1000) return a[Math.floor(n / 100)] + " Hundred" + (n % 100 !== 0 ? " and " + help(n % 100) : "");
+            return "";
+        };
+        if (num === 0) return "Zero";
+        let str = "";
+        if (num >= 10000000) { str += help(Math.floor(num / 10000000)) + " Crore "; num %= 10000000; }
+        if (num >= 100000) { str += help(Math.floor(num / 100000)) + " Lakh "; num %= 100000; }
+        if (num >= 1000) { str += help(Math.floor(num / 1000)) + " Thousand "; num %= 1000; }
+        if (num > 0) str += help(num);
+        return str.trim();
+    }
+
+    function resetNote() { 
+        if (confirm("Clear all permanently?")) {
+            localStorage.clear();
+            location.reload();
+        }
+    }
+
+    function exportToWord() {
+        const clone = document.getElementById("approvalNote").cloneNode(true);
+        clone.querySelectorAll('.no-print').forEach(el => el.remove());
+        const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><style>body{font-family:'Book Antiqua',serif;} .subject-highlight{font-weight:bold; text-decoration:underline; margin-bottom:15px;} table{border-collapse:collapse; width:100%;} th,td{border:1px solid black; padding:5px;} .amt-col{text-align:right;}</style></head><body>";
+        const content = clone.innerHTML;
+        const blob = new Blob([header + content + "</body></html>"], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url; link.download = "Approval_Note.doc"; link.click();
+    }
+
+    function exportToExcel() {
+        const table = document.getElementById("mainTable").cloneNode(true);
+        table.querySelectorAll('.no-print').forEach(el => el.remove());
+        const blob = new Blob([table.outerHTML], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url; link.download = "Bill_Calculation.xls"; link.click();
+    }
+</script>
+
+</body>
+</html>
