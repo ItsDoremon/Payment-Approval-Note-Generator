@@ -215,10 +215,14 @@
             delay = Math.max(0, Math.ceil((recDate - expDate) / 86400000));
             const weeks = Math.ceil(delay / 7);
             ldRate = Math.min(weeks * 0.005, 0.10);
-            ldAmt = amt * ldRate;
+            // Strict currency rounding for LD
+            ldAmt = Math.round((amt * ldRate) * 100) / 100;
         }
 
-        const billData = { bNo, bDate: bDateVal, amt, expDateStr, recDate: recDateVal, delay, ldRate, ldAmt, payable: (amt - ldAmt) };
+        // Fixed Precision Subtraction: 155739 - 7008.26 = 148730.74
+        const payable = parseFloat((amt - ldAmt).toFixed(2));
+
+        const billData = { bNo, bDate: bDateVal, amt, expDateStr, recDate: recDateVal, delay, ldRate, ldAmt, payable: payable };
 
         if (editIdx === -1) {
             bills.push(billData);
@@ -250,7 +254,7 @@
         document.getElementById('poDisp').innerText = d ? formatDate(new Date(d)) : "____";
 
         bills.forEach((bill, idx) => {
-            total += bill.payable;
+            total = parseFloat((total + bill.payable).toFixed(2));
             const row = tbody.insertRow();
             row.innerHTML = `
                 <td>${bill.bNo}<br>dt. ${formatDate(new Date(bill.bDate))}</td>
@@ -302,12 +306,13 @@
     }
 
     function numberToWordsWithPaisa(n) {
-        let fixed = n.toFixed(2);
-        let nums = fixed.split('.');
+        let nums = n.toFixed(2).split('.');
         let whole = parseInt(nums[0]);
         let paisa = parseInt(nums[1]);
         let out = translate(whole);
-        if (paisa > 0) { out += " and " + translate(paisa) + " Paisa"; }
+        if (paisa > 0) { 
+            out += " and " + translate(paisa) + " Paisa"; 
+        }
         return out;
     }
 
